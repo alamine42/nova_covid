@@ -1,3 +1,4 @@
+import os
 import csv
 import requests
 import psycopg2
@@ -83,12 +84,18 @@ with open(data_by_county_filename, 'w') as county_data:
 			totals_by_county[county]['tests']])
 
 try:
+
+	novacovid_db_user = os.environ['NOVACOVID_DB_USER']
+	novacovid_db_password = os.environ['NOVACOVID_DB_PASSWORD']
+	novacovid_db_host = os.environ['NOVACOVID_DB_HOST']
+	novacovid_db_port = os.environ['NOVACOVID_DB_PORT']
+
 	connection = psycopg2.connect(
-		user='ssmlocaa',
-		password='RSMCl2QDj8k9MagqSvdF63y_xDFGU3PO',
-		host='isilo.db.elephantsql.com',
-		port=5432,
-		database = 'ssmlocaa')
+		user=novacovid_db_user,
+		password=novacovid_db_password,
+		host=novacovid_db_host,
+		port=novacovid_db_port,
+		database = novacovid_db_user)
 
 	cursor = connection.cursor()
 	cursor.execute('DELETE FROM covid_by_county WHERE report_dt = \'%s\'' % current_date)
