@@ -42,48 +42,6 @@ with open('data/zip_codes_by_county.csv') as zipcodes:
 # Get the input data
 response = requests.get(location_url, verify=False)
 
-# Iterate through the input data and clean up
-# Also add the county name to each row
-
-with open(data_by_zipcode_filename, 'w') as f:
-	writer = csv.writer(f, quotechar="'")
-	for idx, line in enumerate(response.iter_lines()):
-		
-		if idx < 1:
-			continue
-		
-		line_pieces = line.decode('utf-8').split(',')
-
-		if len(line_pieces) < 3:
-			continue
-
-		reported_dt = line_pieces[0]
-		zip_code = line_pieces[1]
-
-		if line_pieces[2] == 'Suppressed*':
-			total_cases = None
-		else:
-			total_cases = int(line_pieces[2])
-		
-		if str(zip_code) in zip_code_dict:
-			county = zip_code_dict[zip_code]
-
-			if len(line_pieces) > 4:
-				total_tests = int(line_pieces[3].strip('"') + line_pieces[4].strip('"'))
-			else:
-				total_tests = int(line_pieces[3])
-
-			writer.writerow([zip_code, county, total_cases, total_tests])
-
-			add_to_county(county, total_cases, total_tests)
-
-with open(data_by_county_filename, 'w') as county_data:
-	writer = csv.writer(county_data)
-	for county in totals_by_county:
-		writer.writerow([county, 
-			totals_by_county[county]['cases'], 
-			totals_by_county[county]['tests']])
-
 try:
 
 	novacovid_db_user = os.environ['NOVACOVID_DB_USER']
@@ -99,7 +57,63 @@ try:
 		database = novacovid_db_user)
 
 	cursor = connection.cursor()
+	cursor.execute('DELETE FROM covid_source_data WHERE report_dt = \'%s\'' % current_date)
+
+	# Iterate through the input data and clean up
+	# Also add the county name to each row
+
+	with open(data_by_zipcode_filename, 'w') as f:
+		writer = csv.writer(f, quotechar="'")
+
+		for idx, line in enumerate(response.iter_lines()):
+			
+			if idx < 1:
+				continue
+			
+			line_pieces = line.decode('utf-8').split(',')
+
+			if len(line_pieces) < 3:
+				continue
+
+			reported_dt = line_pieces[0]
+			zip_code = line_pieces[1]
+
+			if line_pieces[2] == 'Suppressed*':
+				total_cases = None
+			else:
+				total_cases = int(line_pieces[2])
+			
+			# Merge the last two values. CSV is incorrecly parsing them as two numbers 
+			# because there is a comma
+			if len(line_pieces) > 4:
+				total_tests = int(line_pieces[3].strip('"') + line_pieces[4].strip('"'))
+			else:
+				total_tests = int(line_pieces[3])
+
+			cursor.execute('INSERT INTO covid_source_data VALUES (\'%s\', \'%s\', \'%s\', \'%s\')' % (
+					current_date,
+					zip_code,
+					line_pieces[2],
+					total_tests
+				))
+
+			# Filter on the five NOVA counties
+			if str(zip_code) in zip_code_dict:
+				county = zip_code_dict[zip_code]
+
+				writer.writerow([zip_code, county, total_cases, total_tests])
+
+				add_to_county(county, total_cases, total_tests)
+
+	with open(data_by_county_filename, 'w') as county_data:
+		writer = csv.writer(county_data)
+		for county in totals_by_county:
+			writer.writerow([county, 
+				totals_by_county[county]['cases'], 
+				totals_by_county[county]['tests']])
+
 	cursor.execute('DELETE FROM covid_by_county WHERE report_dt = \'%s\'' % current_date)
+
 	for county in totals_by_county:
 		cursor.execute('INSERT INTO covid_by_county VALUES (\'%s\', \'%s\', %d, %d)' % (
 			current_date,
@@ -108,8 +122,10 @@ try:
 			totals_by_county[county]['tests']
 		))
 	connection.commit()
+
 except (Exception, psycopg2.Error) as error :
 	print ("Error while connecting to PostgreSQL", error)
+	
 finally:
 	if (connection):
 		cursor.close()
