@@ -11,6 +11,7 @@ def add_to_county(county, cases, tests):
 	
 	if cases is None:
 		cases = 0
+		tests = 0
 
 	if county in totals_by_county:
 		totals_by_county[county]['cases'] += cases
