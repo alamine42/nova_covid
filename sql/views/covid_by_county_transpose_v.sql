@@ -1,4 +1,4 @@
-create or replace view covid_by_county_transpose_v as
+create or replace view covid_data_daily_infection_rate_v as
 select
 	lou.report_dt,
 	round(cast(lou.infection_rate as numeric), 3) as loudoun,
@@ -7,16 +7,16 @@ select
 	round(cast(ffx.infection_rate as numeric), 3) as fairfax,
 	round(cast(pw.infection_rate as numeric), 3) as prince_william
 from
-	(select * from covid_by_county_v where county = 'LOUDOUN') lou
+	(select * from covid_data_daily_metrics_v where county = 'LOUDOUN') lou
 left join
-	(select * from covid_by_county_v where county = 'ARLINGTON') arl
+	(select * from covid_data_daily_metrics_v where county = 'ARLINGTON') arl
 	on lou.report_dt = arl.report_dt
 left join
-	(select * from covid_by_county_v where county = 'ALEXANDRIA') alx
+	(select * from covid_data_daily_metrics_v where county = 'ALEXANDRIA') alx
 	on lou.report_dt = alx.report_dt
 left join
-	(select * from covid_by_county_v where county = 'FAIRFAX') ffx
+	(select * from covid_data_daily_metrics_v where county = 'FAIRFAX') ffx
 	on lou.report_dt = ffx.report_dt
 left join
-	(select * from covid_by_county_v where county = 'PRINCE WILLIAM') pw
+	(select * from covid_data_daily_metrics_v where county = 'PRINCE WILLIAM') pw
 	on lou.report_dt = pw.report_dt;
